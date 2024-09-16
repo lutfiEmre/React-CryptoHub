@@ -42,6 +42,9 @@ const CoinList: React.FC<CoinListProps> = ({
     return (
         <>
             <div className="text-center mb-12">
+                <a target={'_blank'} href="https://emrelutfi.com/">
+                    crafted by emrelutfi.com
+                </a>
                 <h1 className="text-3xl font-bold mb-4">Search a currency</h1>
                 <div className="flex justify-center items-center">
                     <input
