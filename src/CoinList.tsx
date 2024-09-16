@@ -2,42 +2,50 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSort, faSortUp, faSortDown, faSyncAlt } from '@fortawesome/free-solid-svg-icons';
-import { Coin, AppState } from './App';
+import { Coin, SortConfig } from './App';
 
 interface CoinListProps {
-    state: AppState;
-    paginatedCoins: Coin[];
+    coins: Coin[];
+    loading: boolean;
+    error: string;
+    search: string;
+    sortConfig: SortConfig | null;
     totalPages: number;
-    handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    handleSort: (key: keyof Coin) => void;
-    handlePageChange: (newPage: number) => void;
-    fetchCoins: () => Promise<void>;
+    currentPage: number;
+    onSearchChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onSort: (key: keyof Coin) => void;
+    onPageChange: (newPage: number) => void;
+    onRefresh: () => Promise<void>;
 }
 
 const CoinList: React.FC<CoinListProps> = ({
-                                               state,
-                                               paginatedCoins,
+                                               coins,
+                                               loading,
+                                               error,
+                                               search,
+                                               sortConfig,
                                                totalPages,
-                                               handleChange,
-                                               handleSort,
-                                               handlePageChange,
-                                               fetchCoins,
+                                               currentPage,
+                                               onSearchChange,
+                                               onSort,
+                                               onPageChange,
+                                               onRefresh,
                                            }) => {
     const navigate = useNavigate();
 
     const renderSortIcon = (key: keyof Coin) => {
-        if (!state.sortConfig || state.sortConfig.key !== key) {
+        if (!sortConfig || sortConfig.key !== key) {
             return <FontAwesomeIcon icon={faSort} />;
         }
-        return state.sortConfig.direction === 'ascending' ? (
+        return sortConfig.direction === 'ascending' ? (
             <FontAwesomeIcon icon={faSortUp} />
         ) : (
             <FontAwesomeIcon icon={faSortDown} />
         );
     };
 
-    if (state.loading) return <div className="text-center mt-20 text-xl">Loading...</div>;
-    if (state.error) return <div className="text-center mt-20 text-xl text-red-500">{state.error}</div>;
+    if (loading) return <div className="text-center mt-20 text-xl">Loading...</div>;
+    if (error) return <div className="text-center mt-20 text-xl text-red-500">{error}</div>;
 
     return (
         <>
@@ -51,11 +59,11 @@ const CoinList: React.FC<CoinListProps> = ({
                         type="text"
                         placeholder="Search"
                         className="w-full max-w-md px-4 py-2 rounded-md bg-gray-800 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={state.search}
-                        onChange={handleChange}
+                        value={search}
+                        onChange={onSearchChange}
                     />
                     <button
-                        onClick={fetchCoins}
+                        onClick={onRefresh}
                         className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                         title="Refresh data"
                     >
@@ -72,7 +80,7 @@ const CoinList: React.FC<CoinListProps> = ({
                                 key={index}
                                 scope="col"
                                 className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-700"
-                                onClick={() => handleSort(header.toLowerCase().replace(/\s+/g, '_') as keyof Coin)}
+                                onClick={() => onSort(header.toLowerCase().replace(/\s+/g, '_') as keyof Coin)}
                             >
                                 {header} {renderSortIcon(header.toLowerCase().replace(/\s+/g, '_') as keyof Coin)}
                             </th>
@@ -80,10 +88,10 @@ const CoinList: React.FC<CoinListProps> = ({
                     </tr>
                     </thead>
                     <tbody className="bg-gray-900 divide-y divide-gray-700">
-                    {paginatedCoins.map((coin) => (
+                    {coins.map((coin) => (
                         <tr
-                            onClick={() => navigate(`/coin/${coin.id}`)}
                             key={coin.id}
+                            onClick={() => navigate(`/coin/${coin.id}`)}
                             className="hover:bg-gray-800 cursor-pointer"
                         >
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -115,23 +123,24 @@ const CoinList: React.FC<CoinListProps> = ({
             </div>
             <div className="mt-6 flex justify-center items-center">
                 <button
-                    onClick={() => handlePageChange(state.page - 1)}
-                    disabled={state.page === 1}
+                    onClick={() => onPageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-600 disabled:cursor-not-allowed mr-4"
                 >
                     Previous
                 </button>
                 <span className="text-lg">
-          {state.page} / {totalPages}
-        </span>
+                    {currentPage} / {totalPages}
+                </span>
                 <button
-                    onClick={() => handlePageChange(state.page + 1)}
-                    disabled={state.page === totalPages}
+                    onClick={() => onPageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
                     className="px-4 py-2 bg-blue-600 text-white rounded-md disabled:bg-gray-600 disabled:cursor-not-allowed ml-4"
                 >
                     Next
                 </button>
             </div>
+
         </>
     );
 };

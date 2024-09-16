@@ -1,54 +1,35 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import { CoinDetailData } from './App';
 
-interface CoinDetailData {
-    id: string;
-    name: string;
-    symbol: string;
-    image: {
-        large: string;
-    };
-    description: {
-        en: string;
-    };
-    market_data: {
-        current_price: {
-            usd: number;
-        };
-        price_change_percentage_24h: number;
-        market_cap: {
-            usd: number;
-        };
-        total_volume: {
-            usd: number;
-        };
-        circulating_supply: number;
-        total_supply: number;
-    };
+interface CoinDetailProps {
+    fetchCoinDetail: (id: string) => Promise<CoinDetailData>;
 }
 
-function CoinDetail() {
+function CoinDetail({ fetchCoinDetail }: CoinDetailProps) {
     const { id } = useParams<{ id: string }>();
     const [coin, setCoin] = useState<CoinDetailData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const fetchCoinDetail = async () => {
+        const getCoinDetail = async () => {
+            if (!id) return;
+
             try {
                 setLoading(true);
-                const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${id}`);
-                setCoin(response.data);
+                const data = await fetchCoinDetail(id);
+                setCoin(data);
                 setLoading(false);
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (error) {
                 setError('Failed to fetch coin data. Please try again later.');
                 setLoading(false);
             }
         };
 
-        fetchCoinDetail();
-    }, [id]);
+        getCoinDetail();
+    }, [id, fetchCoinDetail]);
 
     if (loading) return <div className="text-center mt-20 text-xl">Loading...</div>;
     if (error) return <div className="text-center mt-20 text-xl text-red-500">{error}</div>;

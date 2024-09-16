@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import axios from 'axios';
-import CoinList from './CoinList.tsx';
+import CoinList from './CoinList';
 import CoinDetail from './CoinDetail';
+import CryptoGuessingGame from "./CryptoGuessingGame";
 
 export interface Coin {
     id: string;
@@ -17,6 +18,32 @@ export interface Coin {
     total_supply: number;
 }
 
+export interface CoinDetailData {
+    id: string;
+    name: string;
+    symbol: string;
+    image: {
+        large: string;
+    };
+    description: {
+        en: string;
+    };
+    market_data: {
+        current_price: {
+            usd: number;
+        };
+        price_change_percentage_24h: number;
+        market_cap: {
+            usd: number;
+        };
+        total_volume: {
+            usd: number;
+        };
+        circulating_supply: number;
+        total_supply: number;
+    };
+}
+
 export interface SortConfig {
     key: keyof Coin;
     direction: 'ascending' | 'descending';
@@ -24,6 +51,7 @@ export interface SortConfig {
 
 export interface AppState {
     coins: Coin[];
+    coinDetails: { [key: string]: CoinDetailData };
     search: string;
     page: number;
     sortConfig: SortConfig | null;
@@ -31,11 +59,14 @@ export interface AppState {
     error: string;
 }
 
+export const CACHE_DURATION = 5 * 60 * 1000;
+export const API_BASE_URL = 'https://api.coingecko.com/api/v3';
 const ITEMS_PER_PAGE = 10;
 
 function App() {
     const [state, setState] = useState<AppState>({
         coins: [],
+        coinDetails: {},
         search: '',
         page: 1,
         sortConfig: null,
@@ -44,33 +75,59 @@ function App() {
     });
 
     const fetchCoins = useCallback(async () => {
+        setState(prevState => ({ ...prevState, loading: true, error: '' }));
+
         try {
-            setState(prev => ({ ...prev, loading: true }));
-            const response = await axios.get(
-                'https://api.coingecko.com/api/v3/coins/markets',
-                {
-                    params: {
-                        vs_currency: 'usd',
-                        order: 'market_cap_desc',
-                        per_page: 250,
-                        page: 1,
-                        sparkline: false,
-                    },
+            const cachedData = localStorage.getItem('coinData');
+            const cachedTimestamp = localStorage.getItem('coinDataTimestamp');
+
+            if (cachedData && cachedTimestamp && Date.now() - Number(cachedTimestamp) < CACHE_DURATION) {
+                setState(prevState => ({
+                    ...prevState,
+                    coins: JSON.parse(cachedData),
+                    loading: false
+                }));
+                return;
+            }
+
+            const response = await axios.get(`${API_BASE_URL}/coins/markets`, {
+                params: {
+                    vs_currency: 'usd',
+                    order: 'market_cap_desc',
+                    per_page: 250,
+                    page: 1,
+                    sparkline: false
                 }
-            );
-            setState(prev => ({
-                ...prev,
-                coins: response.data,
-                loading: false,
-            }));
+            });
+
+            setState(prevState => ({ ...prevState, coins: response.data, loading: false }));
+            localStorage.setItem('coinData', JSON.stringify(response.data));
+            localStorage.setItem('coinDataTimestamp', Date.now().toString());
         } catch (error) {
-            setState(prev => ({
-                ...prev,
-                error: 'Failed to fetch coin data. Please try again later.',
+            setState(prevState => ({
+                ...prevState,
                 loading: false,
+                error: 'An error occurred while fetching data.'
             }));
+            console.error('Error fetching coin data:', error);
         }
     }, []);
+
+    const fetchCoinDetail = useCallback(async (id: string) => {
+        if (state.coinDetails[id]) return state.coinDetails[id];
+
+        try {
+            const response = await axios.get(`${API_BASE_URL}/coins/${id}`);
+            setState(prevState => ({
+                ...prevState,
+                coinDetails: { ...prevState.coinDetails, [id]: response.data }
+            }));
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching coin detail:', error);
+            throw error;
+        }
+    }, [state.coinDetails]);
 
     useEffect(() => {
         fetchCoins();
@@ -141,17 +198,25 @@ function App() {
                     <Routes>
                         <Route path="/" element={
                             <CoinList
-                                state={state}
-                                paginatedCoins={paginatedCoins}
+                                coins={paginatedCoins}
+                                loading={state.loading}
+                                error={state.error}
+                                search={state.search}
+                                sortConfig={state.sortConfig}
                                 totalPages={totalPages}
-                                handleChange={handleChange}
-                                handleSort={handleSort}
-                                handlePageChange={handlePageChange}
-                                fetchCoins={fetchCoins}
+                                currentPage={state.page}
+                                onSearchChange={handleChange}
+                                onSort={handleSort}
+                                onPageChange={handlePageChange}
+                                onRefresh={fetchCoins}
                             />
                         } />
-                        <Route path="/coin/:id" element={<CoinDetail />} />
+                        <Route path="/coin/:id" element={<CoinDetail fetchCoinDetail={fetchCoinDetail} />} />
+
                     </Routes>
+                    <div className={'w-full mt-[50px] flex justify-start flex-col items-center'}>
+                        <CryptoGuessingGame coins={state.coins} />
+                    </div>
                 </div>
             </div>
         </Router>
