@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSort, faSortUp, faSortDown, faSyncAlt } from '@fortawesome/free-solid-svg-icons';
-import { Coin, SortConfig, AppState } from './App';
+import { Coin, AppState } from './App';
 
 interface CoinListProps {
     state: AppState;
